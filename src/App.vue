@@ -1,40 +1,43 @@
 <script setup>
-import { ref, onMounted, watch } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { BASE_URL, API_KEY } from "./constans";
 import HighLights from "./components/HighLights.vue";
 import WeatherSummary from "./components/WeatherSummary.vue";
 import Coords from "./components/Coords.vue";
 import Humidity from "./components/Humidity.vue";
+import { capitalizeFirstLetter } from "./utils";
 
 const city = ref("Moscow");
 const weatherInfo = ref(null);
+const isError = computed(() => {
+  return weatherInfo.value?.cod !== 200;
+})
 
 async function getWeather() {
   if (!city.value) {
     console.error("City is empty");
+    weatherInfo.value = { cod: 400, message: "Please enter a city name" };
     return;
   }
 
   try {
-    console.log(
-      "Making request to:",
-      `${BASE_URL}?q=${city.value}&units=metric&appid=${API_KEY}`
-    );
-
     const response = await fetch(
       `${BASE_URL}?q=${city.value}&units=metric&appid=${API_KEY}`
     );
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    const data = await response.json();
+    
+    if (!response.ok || data.cod >= 400) {
+      throw data; 
     }
 
-    const data = await response.json();
-    console.log("Received data:", data);
     weatherInfo.value = data;
   } catch (error) {
     console.error("Fetch error:", error);
-    weatherInfo.value = { error: error.message };
+    weatherInfo.value = {
+      cod: error.cod || 500,
+      message: error.message || "Failed to fetch weather data"
+    };
   }
 }
 
@@ -49,7 +52,7 @@ onMounted(() => {
       <div class="container">
         <div class="laptop">
           <div class="sections">
-            <section class="section section-left">
+            <section :class="['section', 'section-left', { 'section-error': isError }]">
               <div class="info">
                 <div class="city-inner">
                   <input
@@ -59,21 +62,39 @@ onMounted(() => {
                     @keyup.enter="getWeather"
                   />
                 </div>
-                <WeatherSummary :weatherInfo="weatherInfo" />
+                <WeatherSummary 
+                v-if="!isError"
+                :weatherInfo="weatherInfo" 
+                />
+                <div v-else class="error">
+                  <div class="error-title">
+                    Oooops! Something went wrong
+                  </div>
+                  <div 
+                  class="error-message"
+                  v-if="weatherInfo?.message"
+                  >
+                    {{ capitalizeFirstLetter(weatherInfo?.message) }}
+                  </div>
+                </div>
               </div>
             </section>
-            <section class="section section-right">
-              <HighLights />
+            <section 
+            class="section section-right"
+             v-if="!isError"
+            >
+              <HighLights
+              :weatherInfo="weatherInfo" 
+              />
             </section>
           </div>
           <div 
           class="sections"
-          v-if="weatherInfo?.weather"
+          v-if="!isError"
           >
-            <Coords :coord="weatherInfo.coord"
+            <Coords :coord="weatherInfo.coord"/>
 
-            />
-            <Humidity :main="weatherInfo.main"/>
+            <Humidity :humidity="weatherInfo.main.humidity"/>
             
           </div>
         </div>
@@ -114,6 +135,11 @@ onMounted(() => {
 
   @media (max-width: 767px)
     width: 100%
+    padding-right: 0
+
+  &.section-error
+    min-width: 235px
+    width: auto
     padding-right: 0
 
 .section-right
@@ -166,4 +192,15 @@ onMounted(() => {
 
   @media (max-width: 767px)
     width: 100%
+
+.error
+  padding-top: 20px
+
+  &-title
+    font-size: 18px
+    font-weight: 700
+
+  &-message
+     padding-top: 10px
+     font-size: 18px     
 </style>

@@ -2,8 +2,8 @@
 
 
 const props = defineProps({
-    main: {
-        type: Object,
+    humidity: {
+        type: Number,
         required: true,
     }
 })
@@ -20,7 +20,7 @@ const props = defineProps({
             <div 
             class="block-bottom-text-block-title"
             >
-            Humidity: {{ main.humidity }} %</div>
+            Humidity: {{ humidity }} %</div>
             <div class="block-bottom-text-block-desc">
               Humidity is the concentration of water vapor present in the air.
               Water vapor, the gaseous state of water, is generally invisible to
